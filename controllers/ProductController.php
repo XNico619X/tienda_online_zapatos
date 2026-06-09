@@ -1,13 +1,16 @@
 <?php
 require_once __DIR__ . '/../models/Producto.php';
+require_once __DIR__ . '/../models/Compra.php';
 
 class ProductController
 {
     private Producto $productoModel;
+    private Compra $compraModel;
 
     public function __construct()
     {
         $this->productoModel = new Producto();
+        $this->compraModel = new Compra();
     }
 
     public function all(): array
@@ -109,7 +112,7 @@ class ProductController
             : ['success' => false, 'message' => 'Error al eliminar el producto.'];
     }
 
-    public function buy(int $id): array
+    public function buy(int $id, int $usuarioId): array
     {
         $producto = $this->find($id);
         if (!$producto) {
@@ -120,9 +123,21 @@ class ProductController
             return ['success' => false, 'message' => 'No hay stock disponible para este producto.'];
         }
 
+        $db = Database::connect();
+        $db->begin_transaction();
+
         $updated = $this->productoModel->reduceStock($id);
-        return $updated
-            ? ['success' => true, 'message' => 'Compra simulada. Stock actualizado.']
-            : ['success' => false, 'message' => 'Error al procesar la compra.'];
+        $recorded = false;
+        if ($updated) {
+            $recorded = $this->compraModel->create($usuarioId, $id, 1, (float)$producto['precio']);
+        }
+
+        if ($updated && $recorded) {
+            $db->commit();
+            return ['success' => true, 'message' => 'Compra registrada y stock actualizado.'];
+        }
+
+        $db->rollback();
+        return ['success' => false, 'message' => 'Error al procesar la compra.'];
     }
 }

@@ -52,7 +52,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'buy') {
         requireLogin();
         $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-        $response = $productController->buy($id);
+        $userId = $_SESSION['user']['id'] ?? 0;
+        $response = $productController->buy($id, $userId);
         flash($response['success'] ? 'success' : 'error', $response['message']);
         header('Location: index.php?page=' . (isAdmin() ? 'admin' : 'catalogo'));
         exit;
